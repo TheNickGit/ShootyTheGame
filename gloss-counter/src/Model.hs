@@ -32,30 +32,37 @@ instance Viewables GameState where
 initialState :: GameState
 initialState = let ps  = newPlayerShip in
                  GameState (-1) ps [] [(Laser ((500,0),(0,0)) (0.2,0.2) [RectangleF (-20,-20) (20,20)] (Index 0) 10)] NotLoaded
+                  
 
 viewCollisionGS :: GameState -> Picture
 viewCollisionGS gs =  let psCV = viewCollisionOf $ playerShip gs in
-                      let pbCV = viewCollisionOf $ head $ playerBullets gs in
-                      let enCV = viewCollisionOf $ head $ enemies gs in
-                        pictures [psCV, pbCV, enCV]
+                      -- let pbCV = viewCollisionOf $ head $ playerBullets gs in
+                      -- let enCV = viewCollisionOf $ head $ enemies gs in
+                        pictures [psCV] -- , pbCV, enCV
                         
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Spritesheets
-initSprites :: IO Sprites
+initSprites :: [Sprites]
+{-
 initSprites = do
-  psSpr   <- loadBMP "PlayerShip.bmp"
-  pbSpr   <- loadBMP "PlayerBullet.bmp"
-  bSpr    <- loadBMP "Wiegel.bmp"
-  elSpr   <- loadBMP "Wiegel.bmp"
-  eseSpr  <- loadBMP "Wiegel.bmp"
-  eswSpr  <- loadBMP "Wiegel.bmp"
-  ebugSpr <- loadBMP "Wiegel.bmp"
-  lSpr    <- loadBMP "Wiegel.bmp"
-  mSpr    <- loadBMP "Wiegel.bmp"
-  bgSpr   <- loadBMP "Wiegel.bmp"
-  smSpr   <- loadBMP "Wiegel.bmp"
-  putStrLn "initSprites called"
-  return $ SpritesState psSpr pbSpr bSpr elSpr eseSpr eswSpr ebugSpr lSpr mSpr bgSpr smSpr
+  psSpr   <- loadPSSprites
+  pbSpr   <- loadPBSprites               -- loadBMP "PlayerBulletA.bmp"
+  --bSpr    <- loadBMP "Wiegel.bmp"
+  elSpr   <- loadELSprites
+  --eseSpr  <- loadBMP "Wiegel.bmp"
+  --eswSpr  <- loadBMP "Wiegel.bmp"
+  --ebugSpr <- loadBMP "Wiegel.bmp"
+  --lSpr    <- loadBMP "Wiegel.bmp"
+  --mSpr    <- loadBMP "Wiegel.bmp"
+  --bgSpr   <- loadBMP "Wiegel.bmp"
+  --smSpr   <- loadBMP "Wiegel.bmp"
+  --putStrLn "initSprites called"
+  --return $ SpritesState psSpr pbSpr bSpr elSpr eseSpr eswSpr ebugSpr lSpr mSpr bgSpr smSpr
+  return $ SpritesState psSpr pbSpr elSpr
+-}
+initSprites = do
+   psSpr <- loadPSSprites
+   return (SpritesState psSpr loadPBSprites loadELSprites)
 
 spritesLoaded :: GameState -> Bool
 spritesLoaded gs = case sprites gs of
@@ -63,17 +70,17 @@ spritesLoaded gs = case sprites gs of
   _         -> True
 
 data Sprites = NotLoaded |
-  SpritesState { playerShipSprite     :: Picture
-               , playerBulletSprite   :: Picture
-               , bulletSprite         :: Picture
-               , enemyLaserSprite     :: Picture
-               , enemySeekerSprite    :: Picture
-               , enemySwarmSprite     :: Picture
-               , enemyBugSprite       :: Picture
-               , laserSprite          :: Picture
-               , meteorSprite         :: Picture
-               , backgroundSprite     :: Picture
-               , smokeSprite          :: Picture
+  SpritesState { playerShipSprite     :: [Picture]
+               , playerBulletSprite   :: [Picture]
+               --, bulletSprite         :: Picture
+               , enemyLaserSprite     :: [Picture]
+               --, enemySeekerSprite    :: Picture
+               --, enemySwarmSprite     :: Picture
+               --, enemyBugSprite       :: Picture
+               --, laserSprite          :: Picture
+               --, meteorSprite         :: Picture
+               --, backgroundSprite     :: Picture
+               --, smokeSprite          :: Picture
                }
 
 data Animation = Invisible | Index Int
@@ -118,9 +125,13 @@ instance Viewable PlayerShip where
   view sprs ps = case spriteStatePS ps of
     Invisible -> Blank
     Index inx -> let spr = playerShipSprite sprs in
-      translateV (position ps) $ scaleV (size ps) $ spr
+      translateV (position ps) $ scaleV (size ps) $ spr !! (inx `mod` length spr)
 instance Viewables PlayerShip where
   views sprs ps pics = view sprs ps : pics
+
+-- Load the sprite list of the player ship.
+loadPSSprites :: [IO Picture]
+loadPSSprites = [ loadBMP "PlayerShip.bmp" ]
 
 newPlayerShip :: PlayerShip
 newPlayerShip = PlayerShip ((0,0),(0,0)) (1,1) ((22,-20),(15,-15)) (False,False,False,False) [RectangleF (-20,-20) (20,20)] (Index 0)
@@ -147,6 +158,11 @@ instance Viewables a => Viewables [a] where
 despawnPBs :: PlayerBullets -> PlayerBullets
 despawnPBs = filter toNotDespawn
 
+-- Load the sprite list of the player bullets.
+loadPBSprites :: [IO Picture]
+loadPBSprites = [
+  loadBMP "Playerbullets\\PlayerBullet0.bmp"
+  ]
 
 data PlayerBullet  = PlayerBullet { placementPB   :: Placement
                                   , sizePB        :: Vector
@@ -170,12 +186,12 @@ instance Viewable PlayerBullet where
   view sprs pb = case spriteStatePB pb of
     Invisible -> Blank
     Index inx -> let spr = playerBulletSprite sprs in
-      translateV (position pb) $ scaleV (size pb) $ spr
+      translateV (position pb) $ scaleV (size pb) $ spr !! (inx `mod` length spr)
 instance Viewables PlayerBullet where
   views sprs pb pics = view sprs pb : pics
 
 newBullet :: Vector -> PlayerBullet
-newBullet pos = PlayerBullet (pos,(25,0)) (1,1) [RectangleF (-2.0,-2.0) (2.0,2.0)] (Index 0)
+newBullet pos = PlayerBullet (pos,(2.5,0)) (1,1) [RectangleF (-2.0,-2.0) (2.0,2.0)] (Index 0)
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Enemies
@@ -223,16 +239,20 @@ instance Viewable Enemy where
   view sprs en = case spriteStateEn en of
     Invisible -> Blank
     Index inx -> let spr = enemySprite en sprs in
-      translateV (position en) $ scaleV (size en) $ spr
+      translateV (position en) $ scaleV (size en) $ spr !! (inx `mod` length spr)
 instance Viewables Enemy where
   views sprs en pics = view sprs en : pics
 
-enemySprite :: Enemy -> Sprites -> Picture
+enemySprite :: Enemy -> Sprites -> [Picture]
 enemySprite en = case enemyType en of
   LaserType   -> enemyLaserSprite
-  SeekerType  -> enemySeekerSprite
-  SwarmType   -> enemySwarmSprite
-  BugType     -> enemyBugSprite
+  --SeekerType  -> enemySeekerSprite
+  --SwarmType   -> enemySwarmSprite
+  --BugType     -> enemyBugSprite
+
+-- Load the sprite list of the enemy laser.
+loadELSprites :: [IO Picture]
+loadELSprites = [ loadBMP "Wiegel.bmp" ]
 
 --Prevent rewriting when variable is added later on
 data EnemyType = LaserType | SeekerType | SwarmType | BugType
