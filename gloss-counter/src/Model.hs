@@ -42,7 +42,7 @@ viewCollisionGS gs =  let psCV = viewCollisionOf $ playerShip gs in
                         
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Spritesheets
-initSprites :: [Sprites]
+initSprites :: IO Sprites
 {-
 initSprites = do
   psSpr   <- loadPSSprites
@@ -62,7 +62,9 @@ initSprites = do
 -}
 initSprites = do
    psSpr <- loadPSSprites
-   return (SpritesState psSpr loadPBSprites loadELSprites)
+   pbSpr <- loadPBSprites
+   elSpr <- loadELSprites
+   return (SpritesState psSpr pbSpr elSpr)
 
 spritesLoaded :: GameState -> Bool
 spritesLoaded gs = case sprites gs of
@@ -130,8 +132,8 @@ instance Viewables PlayerShip where
   views sprs ps pics = view sprs ps : pics
 
 -- Load the sprite list of the player ship.
-loadPSSprites :: [IO Picture]
-loadPSSprites = [ loadBMP "PlayerShip.bmp" ]
+loadPSSprites :: IO [Picture]
+loadPSSprites = sequence [ loadBMP "PlayerShip.bmp" ]
 
 newPlayerShip :: PlayerShip
 newPlayerShip = PlayerShip ((0,0),(0,0)) (1,1) ((22,-20),(15,-15)) (False,False,False,False) [RectangleF (-20,-20) (20,20)] (Index 0)
@@ -159,8 +161,8 @@ despawnPBs :: PlayerBullets -> PlayerBullets
 despawnPBs = filter toNotDespawn
 
 -- Load the sprite list of the player bullets.
-loadPBSprites :: [IO Picture]
-loadPBSprites = [
+loadPBSprites :: IO [Picture]
+loadPBSprites = sequence [
   loadBMP "Playerbullets\\PlayerBullet0.bmp"
   ]
 
@@ -251,8 +253,8 @@ enemySprite en = case enemyType en of
   --BugType     -> enemyBugSprite
 
 -- Load the sprite list of the enemy laser.
-loadELSprites :: [IO Picture]
-loadELSprites = [ loadBMP "Wiegel.bmp" ]
+loadELSprites :: IO [Picture]
+loadELSprites = sequence [ loadBMP "Wiegel.bmp" ]
 
 --Prevent rewriting when variable is added later on
 data EnemyType = LaserType | SeekerType | SwarmType | BugType
