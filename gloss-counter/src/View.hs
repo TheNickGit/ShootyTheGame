@@ -18,9 +18,10 @@ view4 gs
 viewMain :: GameState -> IO Picture
 viewMain gs = do
               let sprs = sprites gs
+              let picCols = viewCollisionGS gs
               return $ case sprs of
                 NotLoaded -> Blank
-                _         -> pictures $ views sprs gs []
+                _         -> pictures $ (picCols :) $ views sprs gs []
 
 
 {-
