@@ -272,7 +272,7 @@ data Enemy = Laser    { placementEn   :: Placement
 -- Instances of all object type classes
 instance Placeable Enemy where
   placement = placementEn
-  updatePlacement en = en {placementEn = nextPosition 50 (placement en) }
+  updatePlacement en = en {placementEn = nextPosition 150 (placement en) }
 instance Placeables Enemy where
   updatePlacements = updatePlacement
 instance Positionable Enemy where
@@ -299,6 +299,10 @@ instance Viewables Enemy where
   updateAnimations = updateAnimation
 instance ViewCollideables Enemy where
   viewAllCollision ps pics = viewCollisionOf ps : pics
+
+-- Filter out the enemies that need to be removed from the gamestate
+despawnEns :: Enemies -> Enemies
+despawnEns = filter toNotDespawn
 
 -- Load the sprites of the enemies depending on type
 enemySprite :: Enemy -> Sprites -> [Picture]
