@@ -451,7 +451,7 @@ despawnByPosition = foldr g [] where
 
 --Out of bounds despawning
 threshDespawn :: Float
-threshDespawn = 10
+threshDespawn = 1000
 toNotDespawn :: Positionable a => a -> Bool
 toNotDespawn x =
   let trs = threshDespawn in
