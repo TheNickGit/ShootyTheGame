@@ -133,6 +133,7 @@ instance Viewable PlayerShip where
   updateAnimation ps = ps { spriteStatePS = nextAnimation $ spriteStatePS ps}
 instance Viewables PlayerShip where
   views sprs ps pics = view sprs ps : pics
+  updateAnimations = updateAnimation
 
 -- Load the sprite list of the player ship.
 loadPSSprites :: IO [Picture]
@@ -201,9 +202,10 @@ instance Viewable PlayerBullet where
   updateAnimation pb = pb { spriteStatePB = nextAnimation $ spriteStatePB pb}
 instance Viewables PlayerBullet where
   views sprs pb pics = view sprs pb : pics
+  updateAnimations = updateAnimation
 
 newBullet :: Vector -> PlayerBullet
-newBullet pos = PlayerBullet (pos,(2.5,0)) (1,1) [RectangleF (-2.0,-2.0) (2.0,2.0)] (Index 0)
+newBullet pos = PlayerBullet (pos,(10,0)) (1,1) [RectangleF (-2.0,-2.0) (2.0,2.0)] (Index 0)
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Enemies
@@ -255,6 +257,7 @@ instance Viewable Enemy where
   updateAnimation en = en { spriteStateEn = nextAnimation $ spriteStateEn en}
 instance Viewables Enemy where
   views sprs en pics = view sprs en : pics
+  updateAnimations = updateAnimation
 
 enemySprite :: Enemy -> Sprites -> [Picture]
 enemySprite en = case enemyType en of
@@ -298,7 +301,7 @@ class (Positionable a) => Viewable a where
   updateAnimation :: a -> a
 class Viewables a where
   views :: Sprites -> a -> [Picture] -> [Picture]
-  updateAnimations :: [a] -> [a]
+  updateAnimations :: a -> a
 
 --updateAnim :: Animation -> Animation
 --updateAnim Invisible = Invisible

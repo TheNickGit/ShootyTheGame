@@ -21,8 +21,7 @@ step secs gs
   | elapsedTime gs + secs > nO_SECS_BETWEEN_CYCLES
   = -- We update the game state
     do 
-       gs' <- updateAnimations gs
-       return $ updatePlacements $ gs' { playerBullets = despawnPBs $ playerBullets gs'} -- gs'
+       return $ (updatePlacements . updateAnimations) $ gs { playerBullets = despawnPBs $ playerBullets gs} -- gs'
   | otherwise
   = -- Just update the elapsed time
     return $ gs { elapsedTime = elapsedTime gs + secs }
