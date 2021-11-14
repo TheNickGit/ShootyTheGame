@@ -29,7 +29,8 @@ instance Viewables GameState where
                   let addPBs = views sprs (playerBullets gs) in
                   let addEns = views sprs (enemies gs) in
                     addEns . addPBs . addPS
-  updateAnimations gs = gs { playerBullets = updateAnimations $ playerBullets gs }
+  updateAnimations gs = gs { playerBullets = updateAnimations $ playerBullets gs
+                           , enemies = updateAnimations $ enemies gs}
 
 instance ViewCollideables GameState where
   viewAllCollision gs = let addPS  = viewAllCollision (playerShip gs) in
@@ -176,14 +177,14 @@ despawnPBs = filter toNotDespawn
 
 -- Load the sprite list of the player bullets.
 loadPBSprites :: IO [Picture]
-loadPBSprites = let spritelist = map loadBMP [
+loadPBSprites = let spriteList = map loadBMP [
                       "Playerbullets\\PlayerBullet0.bmp",
                       "Playerbullets\\PlayerBullet1.bmp",
                       "Playerbullets\\PlayerBullet2.bmp",
                       "Playerbullets\\PlayerBullet3.bmp",
                       "Playerbullets\\PlayerBullet4.bmp"
                       ]
-                in sequence (spritelist ++ reverse spritelist)
+                in sequence (spriteList ++ reverse spriteList)
 
 data PlayerBullet  = PlayerBullet { placementPB   :: Placement
                                   , sizePB        :: Vector
@@ -286,7 +287,7 @@ instance Viewable Enemy where
   view sprs en = case spriteStateEn en of
     Invisible -> Blank
     Index inx -> let spr = enemySprite en sprs in
-      translateV (position en) $ scaleV (size en) $ spr !! (inx `mod` length spr)
+      translateV (position en) $ scaleV (size en) $ spr !! ((inx `div` 8) `mod` length spr)
   updateAnimation en = en { spriteStateEn = nextAnimation $ spriteStateEn en}
 instance Viewables Enemy where
   views sprs en pics = view sprs en : pics
@@ -300,7 +301,8 @@ enemySprite en = case enemyType en of
 
 -- Load the sprite list of the enemy laser.
 loadELSprites :: IO [Picture]
-loadELSprites = sequence $ map loadBMP ["Laser\\Laser0.bmp", "Laser\\Laser1.bmp", "Laser\\Laser2.bmp", "Laser\\Laser3.bmp"]
+loadELSprites = let spriteList = map loadBMP ["Laser\\Laser0.bmp", "Laser\\Laser1.bmp", "Laser\\Laser2.bmp", "Laser\\Laser3.bmp"]
+                in sequence (spriteList ++ reverse spriteList)
 
 --Prevent rewriting when variable is added later on
 data EnemyType = LaserType | SeekerType | SwarmType | BugType
