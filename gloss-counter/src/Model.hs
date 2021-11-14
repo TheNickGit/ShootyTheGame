@@ -9,8 +9,8 @@ screenSize :: (Int, Int)
 screenSize = (1424, 801)
 
 halfScreenSize :: Vector
-halfScreenSize =  let sx = fromIntegral (fst screenSize) :: Float in
-                  let sy = fromIntegral (snd screenSize) :: Float in
+halfScreenSize =  let sx = (fromIntegral (fst screenSize) :: Float) / 2 in
+                  let sy = (fromIntegral (snd screenSize) :: Float) / 2 in
                     (sx,sy)
 
 nO_SECS_BETWEEN_CYCLES :: Float
@@ -25,7 +25,8 @@ data GameState = GameState { elapsedTime    :: Float
                            , enemies        :: Enemies
                            , playerScore    :: ScorePoints
                            , sprites        :: Sprites
-                           , playState   :: PlayState
+                           , playState      :: PlayState
+                           , highScore      :: ScorePoints
                            }
 
 -- Placeables is responsible for the positioning of the entities
@@ -39,7 +40,9 @@ instance Viewables GameState where
   views sprs gs = let addPS  = views sprs (playerShip gs) in
                   let addPBs = views sprs (playerBullets gs) in
                   let addEns = views sprs (enemies gs) in
-                    addEns . addPBs . addPS
+                  let addOverlay = (:) (viewOverlay gs) in
+                  let addUI = (:) (viewUI gs) in
+                    addUI . addEns . addPBs . addPS . addOverlay
   updateAnimations gs = gs { playerBullets = updateAnimations $ playerBullets gs
                            , enemies = updateAnimations $ enemies gs}
 
@@ -48,6 +51,8 @@ instance ViewCollideables GameState where
   viewAllCollision gs = let addPS  = viewAllCollision (playerShip gs) in
                         let addPBs = viewAllCollision (playerBullets gs) in
                         let addEns = viewAllCollision (enemies gs) in
+                        let addOverlay = (:) (viewOverlay gs) in
+                        let addUI = (:) (viewUI gs) in
                           addEns . addPBs . addPS
 
 -- Updates health values for all entities, passing the score for if an enemy dies
@@ -56,18 +61,34 @@ updateMovementEnGS t gs = let ens = map (updateMovementEn t) $ enemies gs in
                           gs {enemies = ens}
 
 updateHealthGS :: GameState -> GameState
-updateHealthGS gs = gs {playerShip = ps1, playerBullets = pbs1, enemies = ens2, playerScore = pt2} where
+updateHealthGS gs = gs {playerShip = ps1, playerBullets = pbs1, enemies = ens2, playerScore = pt2, highScore = hpt1} where
                       ps  = playerShip gs
                       pbs = playerBullets gs
                       ens = enemies gs
                       pt = playerScore gs
                       (pt1, ps1, ens1) = updateHealth1 (pt, ps, ens)
                       (pt2, ens2, pbs1) = updateHealth2 (pt1, ens1, pbs)
+                      hpt = highScore gs
+                      hpt1 = max pt2 hpt
 
 -- The starting state of the world, consisting of the player and certain enemy entities
 initialState :: GameState
 initialState = let ps  = newPlayerShip in
-                 GameState (-1) 10 ps [] [] 0 NotLoaded Play
+                 GameState (-1) 10 ps [] [] 0 NotLoaded Play 0
+
+resetState :: GameState -> GameState
+resetState gs = initialState { sprites = sprites gs, highScore = highScore gs}
+
+viewUI         :: GameState -> Picture
+viewUI gs      = let offset = halfScreenSize * (-1,1) + (10,-50) in
+  translateV offset $ scaleV (0.2,0.2) $ color white $ text $ show (playerScore gs) ++ " / " ++ show (highScore gs)
+
+viewOverlay    :: GameState -> Picture
+viewOverlay gs = case playState gs of
+  Play     -> Blank
+  GameOver -> translateV (-400,-50) $ scaleV (1,1) $ color yellow $ text "Game Over"
+  Pause    -> translateV (-200,-50) $ scaleV (1,1) $ color yellow $ text "Pause"
+
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Spritesheets

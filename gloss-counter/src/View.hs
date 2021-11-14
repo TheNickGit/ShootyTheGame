@@ -21,4 +21,3 @@ viewMain gs = do
               return $ case sprs of
                 NotLoaded -> Blank
                 _         -> pictures $ views sprs gs [] --pictures $ views sprs gs $ viewAllCollision gs []
-  

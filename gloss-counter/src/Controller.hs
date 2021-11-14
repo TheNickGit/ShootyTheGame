@@ -66,7 +66,7 @@ inputKey (EventKey (SpecialKey KeyEsc) Down _ _) gs
   = -- If the user presses ESC, pause, continu or restart the game.
     case playState gs of
       Play -> gs {playState = Pause}
-      GameOver -> initialState
+      GameOver -> resetState gs
       Pause -> gs {playState = Play}
 inputKey (EventKey (SpecialKey KeySpace) Down _ _) gs
   = -- If the user presses spacebar, spawn bullet.
