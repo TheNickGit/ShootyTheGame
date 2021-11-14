@@ -29,12 +29,12 @@ version :: Version
 version = Version [0,1,0,0] []
 bindir, libdir, dynlibdir, datadir, libexecdir, sysconfdir :: FilePath
 
-bindir     = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\bin"
-libdir     = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\lib\\x86_64-windows-ghc-8.6.5\\gloss-counter-0.1.0.0-AZJn2Fw613G5GpcUNu5vY2-gloss-counter"
-dynlibdir  = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\lib\\x86_64-windows-ghc-8.6.5"
-datadir    = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\share\\x86_64-windows-ghc-8.6.5\\gloss-counter-0.1.0.0"
-libexecdir = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\libexec\\x86_64-windows-ghc-8.6.5\\gloss-counter-0.1.0.0"
-sysconfdir = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\etc"
+bindir     = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit2\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\bin"
+libdir     = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit2\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\lib\\x86_64-windows-ghc-8.6.5\\gloss-counter-0.1.0.0-AZJn2Fw613G5GpcUNu5vY2-gloss-counter"
+dynlibdir  = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit2\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\lib\\x86_64-windows-ghc-8.6.5"
+datadir    = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit2\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\share\\x86_64-windows-ghc-8.6.5\\gloss-counter-0.1.0.0"
+libexecdir = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit2\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\libexec\\x86_64-windows-ghc-8.6.5\\gloss-counter-0.1.0.0"
+sysconfdir = "C:\\Users\\SanderB\\Documents\\UU\\INFOFP\\GameGit2\\ShootyTheGame\\gloss-counter\\.stack-work\\install\\a0abd5ec\\etc"
 
 getBinDir, getLibDir, getDynLibDir, getDataDir, getLibexecDir, getSysconfDir :: IO FilePath
 getBinDir = catchIO (getEnv "gloss_counter_bindir") (\_ -> return bindir)

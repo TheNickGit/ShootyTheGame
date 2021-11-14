@@ -8,8 +8,31 @@ import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 import System.Random
 
---leftovers TODO
---randomNumber <- randomIO
+-- | generate random position new Enemy
+randomPositionEnemy :: IO Enemy
+randomPositionEnemy = do
+  let halfScreenY = ((fromIntegral (snd screenSize)) :: Float) / 2
+  let range1 = (-halfScreenY + 40, halfScreenY  - 40)
+  let range2 = (2.0,10.0)
+  let range3 = (0, halfScreenY / 30)
+  let range4 = (0, 2*pi)
+  posY    <- randomRIO range1
+  speedX  <- randomRIO range2
+  amplY   <- randomRIO range3
+  sinTime <- randomRIO range4
+  return $ newEnemy posY speedX amplY sinTime
+
+randomTimeTillSpawn :: IO Float
+randomTimeTillSpawn = do
+  let range = (0.5, 2.0) :: Vector
+  t <- randomRIO range
+  return t
+
+spawnEnemy :: GameState -> IO GameState
+spawnEnemy gs = do
+  t <- randomTimeTillSpawn
+  en <- randomPositionEnemy
+  return $ gs {timeTillNextEnemy = t, enemies = en : (enemies gs)}
 
 -- | Handle one iteration of the game
 step :: Float -> GameState -> IO GameState
@@ -21,7 +44,11 @@ step secs gs
   | elapsedTime gs + secs > nO_SECS_BETWEEN_CYCLES
   = -- We update the game state
     do 
-       return $ (updateHealthGS . updatePlacements . updateAnimations) $ gs { playerBullets = despawnPBs $ playerBullets gs} -- gs'
+       let gs' = (updateMovementEnGS secs . updateHealthGS . updatePlacements . updateAnimations) $ gs { playerBullets = despawnPBs $ playerBullets gs}
+       let timeNxtEn = timeTillNextEnemy gs' - secs
+       gs'' <- if timeNxtEn <= 0 then spawnEnemy gs' else return $ gs' {timeTillNextEnemy = timeNxtEn}
+       return gs''
+
   | otherwise
   = -- Just update the elapsed time
     return $ gs { elapsedTime = elapsedTime gs + secs }
