@@ -37,6 +37,10 @@ spawnEnemy gs = do
 -- | Handle one iteration of the game
 step :: Float -> GameState -> IO GameState
 step secs gs
+  | (let pshp = playerShip gs in toDespawnByHealth pshp) = do
+    --TODO write highScore in file
+    return $ gs {playState = GameOver}
+  | (let plst = playState gs in plst /= Play) = return $ gs { elapsedTime = elapsedTime gs + secs }
   | (not $ spritesLoaded gs)
   = -- Load Sprites first if not load
     do spr <- initSprites
@@ -44,7 +48,7 @@ step secs gs
   | elapsedTime gs + secs > nO_SECS_BETWEEN_CYCLES
   = -- We update the game state
     do 
-       let gs' = (updateMovementEnGS secs . updateHealthGS . updatePlacements . updateAnimations) $ gs { playerBullets = despawnPBs $ playerBullets gs}
+       let gs' = (updateMovementEnGS secs . updateHealthGS . updatePlacements . updateAnimations) $ gs { playerBullets = despawnPBs $ playerBullets gs, enemies = despawnEns $ enemies gs}
        let timeNxtEn = timeTillNextEnemy gs' - secs
        gs'' <- if timeNxtEn <= 0 then spawnEnemy gs' else return $ gs' {timeTillNextEnemy = timeNxtEn}
        return gs''
@@ -58,6 +62,12 @@ input :: Event -> GameState -> IO GameState
 input e gs = return (inputKey e gs)
 
 inputKey :: Event -> GameState -> GameState
+inputKey (EventKey (SpecialKey KeyEsc) Down _ _) gs
+  = -- If the user presses ESC, pause, continu or restart the game.
+    case playState gs of
+      Play -> gs {playState = Pause}
+      GameOver -> initialState
+      Pause -> gs {playState = Play}
 inputKey (EventKey (SpecialKey KeySpace) Down _ _) gs
   = -- If the user presses spacebar, spawn bullet.
     let pos       = position $ playerShip gs in
