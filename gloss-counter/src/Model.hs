@@ -25,6 +25,7 @@ data GameState = GameState { elapsedTime    :: Float
                            , enemies        :: Enemies
                            , playerScore    :: ScorePoints
                            , sprites        :: Sprites
+                           , playState   :: PlayState
                            }
 instance Placeables GameState where
   updatePlacements gs = gs { playerShip = updatePlacement $ playerShip gs
@@ -59,7 +60,7 @@ updateHealthGS gs = gs {playerShip = ps1, playerBullets = pbs1, enemies = ens2, 
                       
 initialState :: GameState
 initialState = let ps  = newPlayerShip in
-                 GameState (-1) 10 ps [] [] 0 NotLoaded
+                 GameState (-1) 10 ps [] [] 0 NotLoaded Play
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Spritesheets
@@ -123,6 +124,7 @@ subInf PosInf _        = PosInf
 subInf NegInf _        = NegInf
 subInf (Fin x) (Fin y) = Fin (x - y)
 
+data PlayState = Play | GameOver | Pause deriving (Eq, Show)
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --PlayerShip
 data PlayerShip = PlayerShip { placementPS      :: Placement
