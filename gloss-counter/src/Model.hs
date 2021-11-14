@@ -133,6 +133,8 @@ data PlayerShip = PlayerShip { placementPS      :: Placement
                              , damagePS         :: Health
                              , spriteStatePS    :: Animation
                              } deriving (Show)
+
+-- Instances of all object type classes
 instance Placeable PlayerShip where
   placement = placementPS
   updatePlacement ps = ps {placementPS = nextPosition (-70) (placement ps) }
@@ -182,6 +184,7 @@ instance Viewables a => Viewables [a] where
 instance ViewCollideables a => ViewCollideables [a] where
   viewAllCollision vs pics = foldr viewAllCollision pics vs
 
+-- Filter out the bullets that need to be removed from the gamestate
 despawnPBs :: PlayerBullets -> PlayerBullets
 despawnPBs = filter toNotDespawn
 
@@ -203,6 +206,8 @@ data PlayerBullet  = PlayerBullet { placementPB   :: Placement
                                   , damagePB      :: Health
                                   , spriteStatePB :: Animation
                                   } deriving (Show)
+
+-- Instances of all object type classes
 instance Placeable PlayerBullet where
   placement = placementPB
   updatePlacement pb = pb {placementPB = nextPosition 100 (placement pb) }
@@ -252,6 +257,7 @@ data Enemy = Laser    { placementEn   :: Placement
                       } deriving (Show)
           -- More enemy types can be added here
 
+-- Instances of all object type classes
 instance Placeable Enemy where
   placement = placementEn
   updatePlacement en = en {placementEn = nextPosition 50 (placement en) }
@@ -282,6 +288,7 @@ instance Viewables Enemy where
 instance ViewCollideables Enemy where
   viewAllCollision ps pics = viewCollisionOf ps : pics
 
+-- Load the sprites of the enemies depending on type
 enemySprite :: Enemy -> Sprites -> [Picture]
 enemySprite en = case enemyType en of
   LaserType   -> enemyLaserSprite
@@ -302,21 +309,23 @@ enemyType (Bug    {}) = BugType -}
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Type classes and type functions
+
+-- The classes responsible for giving entities a position and updating it
 class Positionable a where
   position :: a -> Vector
-
 class Moveable a where
   movement :: a -> Movement
-
 class (Positionable a, Moveable a) => Placeable a where
   placement :: a -> Placement
   updatePlacement :: a -> a
 class Placeables a where
   updatePlacements :: a -> a
 
+-- The class responsible for correctly sizing the entities
 class Sizeable a where
   size :: a -> Vector
 
+-- The classes responsible for visualising the entities
 class (Positionable a) => Viewable a where
   view :: Sprites -> a -> Picture
   updateAnimation :: a -> a
@@ -324,24 +333,25 @@ class Viewables a where
   views :: Sprites -> a -> [Picture] -> [Picture]
   updateAnimations :: a -> a
 
+-- The classes handling collision and hitboxes
 class Positionable a => Collideable a where
   collision :: a -> Collision
 class (Viewables a) => ViewCollideables a where
   viewAllCollision :: a -> [Picture] -> [Picture]
 
+-- Classes dealing with health of entities, getting hit and incrementing the score
 class (Collideable a) => Hurtable a where
   health   :: a -> Health
   getDamage :: Health -> a -> a
-
 class (Collideable a) => Painful a where
   damage   :: a -> Health
-
 class (Hurtable a) => Scoreable a where
   score    :: a -> ScorePoints
 
 ---------------------------------------------------------------------------------------
---Functions for class types
+--Functions for the type classes
 
+-- Updates health values and checks if the entity is out of health and needs to be removed
 updateHealth1 :: (Hurtable a, Painful a, Scoreable b, Hurtable b, Painful b) => (ScorePoints,a,[b]) -> (ScorePoints,a,[b])
 updateHealth1 (pt,obj1, [])           = (pt,obj1, [])
 updateHealth1 (pt,obj1, (obj2:obj2s)) | toDespawnByHealth obj1 = (pt, obj1, (obj2:obj2s))
@@ -398,12 +408,15 @@ viewCollision col = pictures $ map viewRectangle col
 viewRectangle :: RectangleF -> Picture
 viewRectangle (RectangleF (x1,x2) (y1,y2))  = Color red $ polygon [(x1,x2), (x1,y2), (y1,y2), (y1,x2), (x1,x2)]
 
+-- Helps dealing damage to entities
 doDamage :: (Hurtable a, Painful b) => b -> a -> a
 doDamage att = getDamage (damage att)
 
+-- Signals whether an entity still has health left or needs to be removed
 toDespawnByHealth :: (Hurtable a) => a -> Bool
 toDespawnByHealth obj = health obj <= (Fin 0)
 
+-- Asks if entities needs to be removed and does so if needed
 despawnByPosition :: (Positionable a) => [a] -> [a]
 despawnByPosition = foldr g [] where
   g obj acc | toNotDespawn obj = obj:acc
