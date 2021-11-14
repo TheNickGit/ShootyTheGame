@@ -35,12 +35,14 @@ instance Viewables GameState where
   updateAnimations gs = gs { playerBullets = updateAnimations $ playerBullets gs
                            , enemies = updateAnimations $ enemies gs}
 
+-- ViewCollideables is resonsible for checking collisions between all entities
 instance ViewCollideables GameState where
   viewAllCollision gs = let addPS  = viewAllCollision (playerShip gs) in
                         let addPBs = viewAllCollision (playerBullets gs) in
                         let addEns = viewAllCollision (enemies gs) in
                           addEns . addPBs . addPS
 
+-- Updates health values for all entities, passing the score for if an enemy dies
 updateHealthGS :: GameState -> GameState
 updateHealthGS gs = gs {playerShip = ps1, playerBullets = pbs1, enemies = ens2, playerScore = pt2} where
                       ps  = playerShip gs
@@ -49,11 +51,11 @@ updateHealthGS gs = gs {playerShip = ps1, playerBullets = pbs1, enemies = ens2, 
                       pt = playerScore gs
                       (pt1, ps1, ens1) = updateHealth1 (pt, ps, ens)
                       (pt2, ens2, pbs1) = updateHealth2 (pt1, ens1, pbs)
-                      
+
 -- The starting state of the world, consisting of the player and certain enemy entities
 initialState :: GameState
 initialState = let ps  = newPlayerShip in
-                 GameState (-1) ps [] [(Laser ((500,0),(0,0)) (1.5,1.5) [RectangleF (-50,-40) (50,40), RectangleF (-60,-32) (60,32)] (Fin 3) (Fin 1) (Index 0) 10)] 0 NotLoaded
+                 GameState (-1) ps [] [Laser ((500,0),(0,0)) (1.5,1.5) [RectangleF (-50,-40) (50,40), RectangleF (-60,-32) (60,32)] (Fin 3) (Fin 1) (Index 0) 10] 0 NotLoaded
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Spritesheets
@@ -64,17 +66,20 @@ initSprites = do
    elSpr <- loadELSprites
    return (SpritesState psSpr pbSpr elSpr)
 
+-- Checks if sprites are already loaded into the gamestate
 spritesLoaded :: GameState -> Bool
 spritesLoaded gs = case sprites gs of
   NotLoaded -> False
   _         -> True
 
+-- A collection of the sprites in lists of pictures
 data Sprites = NotLoaded |
   SpritesState { playerShipSprite     :: [Picture]
                , playerBulletSprite   :: [Picture]
                , enemyLaserSprite     :: [Picture]
                }
 
+-- Animation is used to keep track of the animation index, which decides which sprite from the list to load
 data Animation = Invisible | Index Int deriving (Show)
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -130,7 +135,7 @@ data PlayerShip = PlayerShip { placementPS      :: Placement
                              } deriving (Show)
 instance Placeable PlayerShip where
   placement = placementPS
-  updatePlacement ps = ps {placementPS = nextPosition (-70) (placement ps) } --TODO stayInBounds (collision ps) $ 
+  updatePlacement ps = ps {placementPS = nextPosition (-70) (placement ps) }
 instance Positionable PlayerShip where
   position = fst . placement
 instance Moveable PlayerShip where
@@ -158,10 +163,11 @@ instance Viewables PlayerShip where
 instance ViewCollideables PlayerShip where
   viewAllCollision ps pics = viewCollisionOf ps : pics
 
--- Load the sprite list of the player ship.
+-- Load the sprite list of the player ship
 loadPSSprites :: IO [Picture]
 loadPSSprites = sequence [ loadBMP "PlayerShip.bmp" ]
 
+-- Constructor
 newPlayerShip :: PlayerShip
 newPlayerShip = PlayerShip ((-500,0),(0,0)) (1,1) ((22,-20),(15,-15)) (False,False,False,False) [RectangleF (-40,-55) (-10,55), RectangleF (-10,-35) (15,35), RectangleF (-60,-25) (60,25)] (Fin 5) (PosInf) (Index 0)
 
@@ -174,7 +180,7 @@ instance Viewables a => Viewables [a] where
   views sprs vs pics = foldr (views sprs) pics vs
   updateAnimations = map updateAnimations
 instance ViewCollideables a => ViewCollideables [a] where
-  viewAllCollision vs pics = foldr (viewAllCollision) pics vs
+  viewAllCollision vs pics = foldr viewAllCollision pics vs
 
 despawnPBs :: PlayerBullets -> PlayerBullets
 despawnPBs = filter toNotDespawn
@@ -229,12 +235,12 @@ instance Viewables PlayerBullet where
 instance ViewCollideables PlayerBullet where
   viewAllCollision ps pics = viewCollisionOf ps : pics
 
+-- Constructor: Creates a new bullet at the position of the player
 newBullet :: Vector -> PlayerBullet
 newBullet pos = PlayerBullet (pos,(25,0)) (1,1) [RectangleF (-7.0,-7.0) (7.0,7.0)] (Fin 1) (Fin 1) (Index 0)
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Enemies
---Enemy species: Laser, Seeker, Swarm with bugs
 type Enemies = [Enemy]
 data Enemy = Laser    { placementEn   :: Placement
                       , sizeEn        :: Vector
@@ -244,30 +250,7 @@ data Enemy = Laser    { placementEn   :: Placement
                       , spriteStateEn :: Animation
                       , scoreValueEn  :: ScorePoints
                       } deriving (Show)
-{-           | Seeker   { placementEn   :: Placement
-                      , sizeEn        :: Vector
-                      , collisionEn   :: Collision
-                      , healthEn      :: Health
-                      , damageEn      :: Health
-                      , spriteStateEn :: Animation
-                      , scoreValueEn  :: ScorePoints
-                      }
-           | Swarm    { placementEn   :: Placement
-                      , sizeEn        :: Vector
-                      , collisionEn   :: Collision
-                      , healthEn      :: Health
-                      , damageEn      :: Health
-                      , spriteStateEn :: Animation
-                      , scoreValueEn  :: ScorePoints
-                      }
-           | Bug      { placementEn   :: Placement
-                      , sizeEn        :: Vector
-                      , collisionEn   :: Collision
-                      , healthEn      :: Health
-                      , damageEn      :: Health
-                      , spriteStateEn :: Animation
-                      , scoreValueEn  :: ScorePoints
-                      } -}
+          -- More enemy types can be added here
 
 instance Placeable Enemy where
   placement = placementEn
@@ -395,6 +378,7 @@ doesCollide _    []   _    _    = False
 doesCollide _    _    _    []   = False
 doesCollide pos1 (rec1:col1) pos2 col2 = any (rectangleCollide pos1 rec1 pos2) col2 || doesCollide pos1 col1 pos2 col2
 
+-- Compares rectangles for collision
 rectangleCollide :: Vector -> RectangleF -> Vector -> RectangleF -> Bool
 rectangleCollide pos1 (RectangleF vec11 vec12) pos2 (RectangleF vec21 vec22) =
   let (x11,y11) = vec11 + pos1 in           --(Bottom, Left)
@@ -440,10 +424,12 @@ toNotDespawn x =
   (snd pos <  sy)
 
 --Placement
---TODO turn into instance perhaps, change data type into something like game state, with functions, safes on typing
+-- Updates the position of an object based on their movement
+-- The offset is pased for each object type individualy to prevent moving out of bounds
 nextPosition :: Float -> Placement -> Placement
 nextPosition offset p@((posx, posy), mvt@(mvtx, mvty)) = ((nextX offset (posx,mvtx), nextY offset (posy,mvty)),mvt)
 
+-- Updates the x-coordinate of the object and prevent moving out of the x bounds
 nextX :: Float -> Vector -> Float
 nextX offset (posx, mvtx)
   | posx+mvtx <= -xBounds = -xBounds -- left x bounds
@@ -452,6 +438,7 @@ nextX offset (posx, mvtx)
     where
         xBounds = (fromIntegral (fst screenSize) :: Float) / 2 + offset
 
+-- Updates the y-coordinate of the object and prevent moving out of the y bounds
 nextY :: Float -> Vector -> Float
 nextY offset (posy, mvty)
   | posy+mvty <= -yBounds = -yBounds  -- lower y bound
@@ -461,12 +448,13 @@ nextY offset (posy, mvty)
       yBounds = (fromIntegral (snd screenSize) :: Float) / 2 + offset
 
 -- Animation
+-- Updates the animation index, signalling that a new sprites needs to be shown
 nextAnimation :: Animation -> Animation
 nextAnimation Invisible = Invisible
 nextAnimation (Index inx) = Index (inx + 1)
 
 --View
---translate, scale but with vectors
+--translate and scale functions for vectors
 translateV  :: Vector -> Picture -> Picture
 translateV  (fl1, fl2) = translate  fl1 fl2
 scaleV      :: Vector -> Picture -> Picture
