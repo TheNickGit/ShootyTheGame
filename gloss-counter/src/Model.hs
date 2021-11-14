@@ -20,10 +20,13 @@ data GameState = GameState { elapsedTime    :: Float
                            , playerScore    :: ScorePoints
                            , sprites        :: Sprites
                            }
+
+-- Placeables is responsible for the positioning of the entities
 instance Placeables GameState where
   updatePlacements gs = gs { playerShip = updatePlacement $ playerShip gs
                            , playerBullets = updatePlacements $ playerBullets gs
                            }
+-- Viewables is responsible for handling the sprites and updating the animation indices
 instance Viewables GameState where
   views sprs gs = let addPS  = views sprs (playerShip gs) in
                   let addPBs = views sprs (playerBullets gs) in
@@ -47,6 +50,7 @@ updateHealthGS gs = gs {playerShip = ps1, playerBullets = pbs1, enemies = ens2, 
                       (pt1, ps1, ens1) = updateHealth1 (pt, ps, ens)
                       (pt2, ens2, pbs1) = updateHealth2 (pt1, ens1, pbs)
                       
+-- The starting state of the world, consisting of the player and certain enemy entities
 initialState :: GameState
 initialState = let ps  = newPlayerShip in
                  GameState (-1) ps [] [(Laser ((500,0),(0,0)) (1.5,1.5) [RectangleF (-50,-40) (50,40), RectangleF (-60,-32) (60,32)] (Fin 3) (Fin 1) (Index 0) 10)] 0 NotLoaded
@@ -377,6 +381,7 @@ updateHealth2 (pt, (obj1:obj1s), obj2s) = (pt''', obj1s'',obj2s'') where
   (pt''', obj1s'')        | toDespawnByHealth obj1' = (pt'' + score obj1', obj1s')
                           | otherwise               = (pt'', obj1' : obj1s')
 
+-- Takes two objects and checks for collision
 objectsCollide :: (Collideable a, Collideable b) => a -> b -> Bool
 objectsCollide obj1 obj2 =  let col1 = collision obj1 in
                             let col2 = collision obj2 in
@@ -384,6 +389,7 @@ objectsCollide obj1 obj2 =  let col1 = collision obj1 in
                             let pos2 = position obj2 in
                               doesCollide pos1 col1 pos2 col2
 
+-- Checks whether two objects are colliding based on their positioning and hit boxes
 doesCollide :: Vector -> Collision -> Vector -> Collision -> Bool
 doesCollide _    []   _    _    = False
 doesCollide _    _    _    []   = False
