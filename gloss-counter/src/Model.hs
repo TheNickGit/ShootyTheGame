@@ -13,7 +13,6 @@ nO_SECS_BETWEEN_CYCLES = 1/60
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --GameState
-
 data GameState = GameState { elapsedTime    :: Float
                            , playerShip     :: PlayerShip
                            , playerBullets  :: PlayerBullets
@@ -45,23 +44,6 @@ viewCollisionGS gs =  let psCV = viewCollisionOf $ playerShip gs in
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Spritesheets
 initSprites :: IO Sprites
-{-
-initSprites = do
-  psSpr   <- loadPSSprites
-  pbSpr   <- loadPBSprites               -- loadBMP "PlayerBulletA.bmp"
-  --bSpr    <- loadBMP "Wiegel.bmp"
-  elSpr   <- loadELSprites
-  --eseSpr  <- loadBMP "Wiegel.bmp"
-  --eswSpr  <- loadBMP "Wiegel.bmp"
-  --ebugSpr <- loadBMP "Wiegel.bmp"
-  --lSpr    <- loadBMP "Wiegel.bmp"
-  --mSpr    <- loadBMP "Wiegel.bmp"
-  --bgSpr   <- loadBMP "Wiegel.bmp"
-  --smSpr   <- loadBMP "Wiegel.bmp"
-  --putStrLn "initSprites called"
-  --return $ SpritesState psSpr pbSpr bSpr elSpr eseSpr eswSpr ebugSpr lSpr mSpr bgSpr smSpr
-  return $ SpritesState psSpr pbSpr elSpr
--}
 initSprites = do
    psSpr <- loadPSSprites
    pbSpr <- loadPBSprites
@@ -76,15 +58,7 @@ spritesLoaded gs = case sprites gs of
 data Sprites = NotLoaded |
   SpritesState { playerShipSprite     :: [Picture]
                , playerBulletSprite   :: [Picture]
-               --, bulletSprite         :: Picture
                , enemyLaserSprite     :: [Picture]
-               --, enemySeekerSprite    :: Picture
-               --, enemySwarmSprite     :: Picture
-               --, enemyBugSprite       :: Picture
-               --, laserSprite          :: Picture
-               --, meteorSprite         :: Picture
-               --, backgroundSprite     :: Picture
-               --, smokeSprite          :: Picture
                }
 
 data Animation = Invisible | Index Int
@@ -106,7 +80,6 @@ instance (Num a, Num b) => Num (a,b) where
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --PlayerShip
-
 data PlayerShip = PlayerShip { placementPS      :: Placement
                              , sizePS           :: Vector
                              , directions       :: MovementPlus
@@ -154,7 +127,6 @@ stayInBounds (Triangle vx vy vz) =
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --PlayerBullets
-
 type PlayerBullets = [PlayerBullet]
 instance Placeables a => Placeables [a] where
   updatePlacements = map updatePlacements
@@ -217,7 +189,7 @@ data Enemy = Laser    { placementEn   :: Placement
                       , spriteStateEn :: Animation
                       , scoreValueEn  :: ScorePoints
                       }
-           | Seeker   { placementEn   :: Placement
+{-           | Seeker   { placementEn   :: Placement
                       , sizeEn        :: Vector
                       , collisionEn   :: Collision
                       , spriteStateEn :: Animation
@@ -234,7 +206,7 @@ data Enemy = Laser    { placementEn   :: Placement
                       , collisionEn   :: Collision
                       , spriteStateEn :: Animation
                       , scoreValueEn  :: ScorePoints
-                      }
+                      } -}
 
 instance Placeable Enemy where
   placement = placementEn
@@ -262,9 +234,6 @@ instance Viewables Enemy where
 enemySprite :: Enemy -> Sprites -> [Picture]
 enemySprite en = case enemyType en of
   LaserType   -> enemyLaserSprite
-  --SeekerType  -> enemySeekerSprite
-  --SwarmType   -> enemySwarmSprite
-  --BugType     -> enemyBugSprite
 
 -- Load the sprite list of the enemy laser.
 loadELSprites :: IO [Picture]
@@ -274,9 +243,9 @@ loadELSprites = sequence [ loadBMP "Wiegel.bmp" ]
 data EnemyType = LaserType | SeekerType | SwarmType | BugType
 enemyType :: Enemy -> EnemyType
 enemyType (Laser  _ _ _ _ _) = LaserType
-enemyType (Seeker _ _ _ _ _) = SeekerType
+{-enemyType (Seeker _ _ _ _ _) = SeekerType
 enemyType (Swarm  _ _ _ _ _) = SwarmType
-enemyType (Bug    _ _ _ _ _) = BugType
+enemyType (Bug    _ _ _ _ _) = BugType -}
 
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -302,10 +271,6 @@ class (Positionable a) => Viewable a where
 class Viewables a where
   views :: Sprites -> a -> [Picture] -> [Picture]
   updateAnimations :: a -> a
-
---updateAnim :: Animation -> Animation
---updateAnim Invisible = Invisible
---updateAnim (Index inx) = Index (inx + 1)
 
 class Despawnables a where
   toDespawn :: a -> a
@@ -364,7 +329,16 @@ toNotDespawn x =
 --Placement
 --TODO turn into instance perhaps, change data type into something like game state, with functions, safes on typing
 nextPosition :: Placement -> Placement
-nextPosition ((posx, posy), mvt@((mvtx), (mvty))) = ((posx+mvtx, posy+mvty),mvt)
+--nextPosition ((posx, posy), mvt@((mvtx), (mvty))) = ((posx+mvtx, posy+mvty),mvt)
+nextPosition ((posx, posy), mvt@((mvtx), (mvty))) | posx+mvtx <= -xBounds = ((-xBounds, posy+mvty),mvt) -- left x bounds
+                                                  | posx+mvtx >= xBounds = ((xBounds, posy+mvty),mvt)   -- right x bounds
+                                                  | posy+mvty <= -yBounds = ((posx+mvtx, -yBounds),mvt) -- lower y bound
+                                                  | posy+mvty >= yBounds = ((posx+mvtx, yBounds),mvt)  -- upper y bound
+                                                  | otherwise = ((posx+mvtx, posy+mvty),mvt)
+                                                  where
+                                                    xBounds = 1520/2 + offset
+                                                    yBounds = 855/2 + offset
+                                                    offset = 0
 
 -- Animation
 nextAnimation :: Animation -> Animation
