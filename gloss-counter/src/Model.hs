@@ -33,14 +33,14 @@ instance Viewables GameState where
 initialState :: GameState
 initialState = let ps  = newPlayerShip in
                  GameState (-1) ps [] [(Laser ((500,0),(0,0)) (0.2,0.2) [RectangleF (-20,-20) (20,20)] (Index 0) 10)] NotLoaded
-                  
+
 
 viewCollisionGS :: GameState -> Picture
 viewCollisionGS gs =  let psCV = viewCollisionOf $ playerShip gs in
                       -- let pbCV = viewCollisionOf $ head $ playerBullets gs in
                       -- let enCV = viewCollisionOf $ head $ enemies gs in
                         pictures [psCV] -- , pbCV, enCV
-                        
+
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Spritesheets
 initSprites :: IO Sprites
@@ -89,7 +89,7 @@ data PlayerShip = PlayerShip { placementPS      :: Placement
                              }
 instance Placeable PlayerShip where
   placement = placementPS
-  updatePlacement ps = ps {placementPS = nextPosition $ placement ps } --TODO stayInBounds (collision ps) $ 
+  updatePlacement ps = ps {placementPS = nextPosition (placement ps) (-100) } --TODO stayInBounds (collision ps) $ 
 instance Positionable PlayerShip where
   position = fst . placement
 instance Moveable PlayerShip where
@@ -155,7 +155,7 @@ data PlayerBullet  = PlayerBullet { placementPB   :: Placement
                                   }
 instance Placeable PlayerBullet where
   placement = placementPB
-  updatePlacement pb = pb {placementPB = nextPosition $ placement pb }
+  updatePlacement pb = pb {placementPB = nextPosition (placement pb) 100 }
 instance Placeables PlayerBullet where
   updatePlacements = updatePlacement
 instance Positionable PlayerBullet where
@@ -210,7 +210,7 @@ data Enemy = Laser    { placementEn   :: Placement
 
 instance Placeable Enemy where
   placement = placementEn
-  updatePlacement en = en {placementEn = nextPosition $ placement en }
+  updatePlacement en = en {placementEn = nextPosition (placement en) 50 }
 instance Placeables Enemy where
   updatePlacements = updatePlacement
 instance Positionable Enemy where
@@ -242,7 +242,7 @@ loadELSprites = sequence [ loadBMP "Wiegel.bmp" ]
 --Prevent rewriting when variable is added later on
 data EnemyType = LaserType | SeekerType | SwarmType | BugType
 enemyType :: Enemy -> EnemyType
-enemyType (Laser  _ _ _ _ _) = LaserType
+enemyType (Laser {}) = LaserType
 {-enemyType (Seeker _ _ _ _ _) = SeekerType
 enemyType (Swarm  _ _ _ _ _) = SwarmType
 enemyType (Bug    _ _ _ _ _) = BugType -}
@@ -328,17 +328,24 @@ toNotDespawn x =
 
 --Placement
 --TODO turn into instance perhaps, change data type into something like game state, with functions, safes on typing
-nextPosition :: Placement -> Placement
---nextPosition ((posx, posy), mvt@((mvtx), (mvty))) = ((posx+mvtx, posy+mvty),mvt)
-nextPosition ((posx, posy), mvt@((mvtx), (mvty))) | posx+mvtx <= -xBounds = ((-xBounds, posy+mvty),mvt) -- left x bounds
-                                                  | posx+mvtx >= xBounds = ((xBounds, posy+mvty),mvt)   -- right x bounds
-                                                  | posy+mvty <= -yBounds = ((posx+mvtx, -yBounds),mvt) -- lower y bound
-                                                  | posy+mvty >= yBounds = ((posx+mvtx, yBounds),mvt)  -- upper y bound
-                                                  | otherwise = ((posx+mvtx, posy+mvty),mvt)
-                                                  where
-                                                    xBounds = 1520/2 + offset
-                                                    yBounds = 855/2 + offset
-                                                    offset = 0
+nextPosition :: Placement -> Float -> Placement
+nextPosition p@((posx, posy), mvt@(mvtx, mvty)) offset = ((nextX p offset, nextY p offset),mvt)
+
+nextX :: Placement -> Float -> Float
+nextX ((posx, _), (mvtx, _)) offset
+  | posx+mvtx <= -xBounds = -xBounds -- left x bounds
+  | posx+mvtx >= xBounds  = xBounds  -- right x bounds
+  | otherwise = posx+mvtx
+    where
+        xBounds = 1520/2 + offset
+
+nextY :: Placement -> Float -> Float
+nextY ((_, posy), (_, mvty)) offset
+  | posy+mvty <= -yBounds = -yBounds  -- lower y bound
+  | posy+mvty >= yBounds  = yBounds   -- upper y bound
+  | otherwise = posy+mvty
+    where
+      yBounds = 855/2 + offset
 
 -- Animation
 nextAnimation :: Animation -> Animation
