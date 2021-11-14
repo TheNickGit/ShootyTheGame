@@ -8,12 +8,18 @@ import GHC.Err (undefined)
 screenSize :: (Int, Int)
 screenSize = (1424, 801)
 
+halfScreenSize :: Vector
+halfScreenSize =  let sx = fromIntegral (fst screenSize) :: Float in
+                  let sy = fromIntegral (snd screenSize) :: Float in
+                    (sx,sy)
+
 nO_SECS_BETWEEN_CYCLES :: Float
 nO_SECS_BETWEEN_CYCLES = 1/60
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --GameState
 data GameState = GameState { elapsedTime    :: Float
+                           , timeTillNextEnemy :: Float
                            , playerShip     :: PlayerShip
                            , playerBullets  :: PlayerBullets
                            , enemies        :: Enemies
@@ -23,19 +29,24 @@ data GameState = GameState { elapsedTime    :: Float
 instance Placeables GameState where
   updatePlacements gs = gs { playerShip = updatePlacement $ playerShip gs
                            , playerBullets = updatePlacements $ playerBullets gs
+                           , enemies = updatePlacements $ enemies gs
                            }
 instance Viewables GameState where
   views sprs gs = let addPS  = views sprs (playerShip gs) in
                   let addPBs = views sprs (playerBullets gs) in
                   let addEns = views sprs (enemies gs) in
                     addEns . addPBs . addPS
-  updateAnimations gs = gs { playerBullets = updateAnimations $ playerBullets gs }
+  updateAnimations gs = gs { playerBullets = updateAnimations $ playerBullets gs, enemies = updateAnimations $ enemies gs }
 
 instance ViewCollideables GameState where
   viewAllCollision gs = let addPS  = viewAllCollision (playerShip gs) in
                         let addPBs = viewAllCollision (playerBullets gs) in
                         let addEns = viewAllCollision (enemies gs) in
                           addEns . addPBs . addPS
+
+updateMovementEnGS :: Float -> GameState -> GameState
+updateMovementEnGS t gs = let ens = map (updateMovementEn t) $ enemies gs in
+                          gs {enemies = ens}
 
 updateHealthGS :: GameState -> GameState
 updateHealthGS gs = gs {playerShip = ps1, playerBullets = pbs1, enemies = ens2, playerScore = pt2} where
@@ -48,7 +59,7 @@ updateHealthGS gs = gs {playerShip = ps1, playerBullets = pbs1, enemies = ens2, 
                       
 initialState :: GameState
 initialState = let ps  = newPlayerShip in
-                 GameState (-1) ps [] [(Laser ((500,0),(0,0)) (1.5,1.5) [RectangleF (-50,-40) (50,40), RectangleF (-60,-32) (60,32)] (Fin 3) (Fin 1) (Index 0) 10)] 0 NotLoaded
+                 GameState (-1) 10 ps [] [] 0 NotLoaded
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Spritesheets
@@ -232,6 +243,7 @@ newBullet pos = PlayerBullet (pos,(25,0)) (1,1) [RectangleF (-7.0,-7.0) (7.0,7.0
 --Enemy species: Laser, Seeker, Swarm with bugs
 type Enemies = [Enemy]
 data Enemy = Laser    { placementEn   :: Placement
+                      , amplitudeMov  :: Vector
                       , sizeEn        :: Vector
                       , collisionEn   :: Collision
                       , healthEn      :: Health
@@ -310,6 +322,15 @@ enemyType (Laser {}) = LaserType
 enemyType (Swarm  {}) = SwarmType
 enemyType (Bug    {}) = BugType -}
 
+newEnemy :: Float -> Float -> Float -> Float -> Enemy
+newEnemy posY speedX amplY sinTime = (Laser ((fst halfScreenSize + 100 ,posY),(-speedX,0)) (sinTime, amplY) (1.5,1.5) [RectangleF (-50,-40) (50,40), RectangleF (-60,-32) (60,32)] (Fin 1) (Fin 1) (Index 0) 10)
+
+updateMovementEn :: Float -> Enemy -> Enemy
+updateMovementEn plust en = let (sint,a) = amplitudeMov en in
+                            let (pos,(mvtx,mvty)) = placement en in
+                            let sint' = sint + plust in
+                            let mvty' = a * (cos (sint' * 50 / a)) in
+                              en { amplitudeMov = (sint',a), placementEn = (pos,(mvtx,mvty'))}
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Type classes and type functions
