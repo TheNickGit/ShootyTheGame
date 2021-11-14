@@ -3,6 +3,7 @@
 module Model where
 
 import Graphics.Gloss
+import GHC.Err (undefined)
 
 screenSize :: (Int, Int)
 screenSize = (1520, 855)
@@ -28,6 +29,7 @@ instance Viewables GameState where
                   let addPBs = views sprs (playerBullets gs) in
                   let addEns = views sprs (enemies gs) in
                     addEns . addPBs . addPS
+  updateAnimations gs = gs { playerBullets = updateAnimations $ playerBullets gs }
 
 initialState :: GameState
 initialState = let ps  = newPlayerShip in
@@ -128,6 +130,7 @@ instance Viewable PlayerShip where
     Invisible -> Blank
     Index inx -> let spr = playerShipSprite sprs in
       translateV (position ps) $ scaleV (size ps) $ spr !! (inx `mod` length spr)
+  updateAnimation ps = ps { spriteStatePS = nextAnimation $ spriteStatePS ps}
 instance Viewables PlayerShip where
   views sprs ps pics = view sprs ps : pics
 
@@ -156,15 +159,21 @@ instance Placeables a => Placeables [a] where
   updatePlacements = map updatePlacements
 instance Viewables a => Viewables [a] where
   views sprs vs pics = foldr (views sprs) pics vs
+  updateAnimations = map updateAnimations
 
 despawnPBs :: PlayerBullets -> PlayerBullets
 despawnPBs = filter toNotDespawn
 
 -- Load the sprite list of the player bullets.
 loadPBSprites :: IO [Picture]
-loadPBSprites = sequence [
-  loadBMP "Playerbullets\\PlayerBullet0.bmp"
-  ]
+loadPBSprites = let spritelist = [
+                      loadBMP "Playerbullets\\PlayerBullet0.bmp",
+                      loadBMP "Playerbullets\\PlayerBullet1.bmp",
+                      loadBMP "Playerbullets\\PlayerBullet2.bmp",
+                      loadBMP "Playerbullets\\PlayerBullet3.bmp",
+                      loadBMP "Playerbullets\\PlayerBullet4.bmp"
+                      ]
+                in sequence (spritelist ++ reverse spritelist)
 
 data PlayerBullet  = PlayerBullet { placementPB   :: Placement
                                   , sizePB        :: Vector
@@ -189,6 +198,7 @@ instance Viewable PlayerBullet where
     Invisible -> Blank
     Index inx -> let spr = playerBulletSprite sprs in
       translateV (position pb) $ scaleV (size pb) $ spr !! (inx `mod` length spr)
+  updateAnimation pb = pb { spriteStatePB = nextAnimation $ spriteStatePB pb}
 instance Viewables PlayerBullet where
   views sprs pb pics = view sprs pb : pics
 
@@ -242,6 +252,7 @@ instance Viewable Enemy where
     Invisible -> Blank
     Index inx -> let spr = enemySprite en sprs in
       translateV (position en) $ scaleV (size en) $ spr !! (inx `mod` length spr)
+  updateAnimation en = en { spriteStateEn = nextAnimation $ spriteStateEn en}
 instance Viewables Enemy where
   views sprs en pics = view sprs en : pics
 
@@ -284,8 +295,14 @@ class Sizeable a where
 
 class (Positionable a) => Viewable a where
   view :: Sprites -> a -> Picture
+  updateAnimation :: a -> a
 class Viewables a where
   views :: Sprites -> a -> [Picture] -> [Picture]
+  updateAnimations :: [a] -> [a]
+
+--updateAnim :: Animation -> Animation
+--updateAnim Invisible = Invisible
+--updateAnim (Index inx) = Index (inx + 1)
 
 class Despawnables a where
   toDespawn :: a -> a
@@ -345,6 +362,11 @@ toNotDespawn x =
 --TODO turn into instance perhaps, change data type into something like game state, with functions, safes on typing
 nextPosition :: Placement -> Placement
 nextPosition ((posx, posy), mvt@((mvtx), (mvty))) = ((posx+mvtx, posy+mvty),mvt)
+
+-- Animation
+nextAnimation :: Animation -> Animation
+nextAnimation Invisible = Invisible
+nextAnimation (Index inx) = Index (inx + 1)
 
 --View
 --translate, scale but with vectors

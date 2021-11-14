@@ -19,9 +19,10 @@ step secs gs
     do spr <- initSprites
        return $ gs {sprites = spr, elapsedTime = 0}
   | elapsedTime gs + secs > nO_SECS_BETWEEN_CYCLES
-  = -- We show a new random number
+  = -- We update the game state
     do 
-       return $ updatePlacements $ gs { playerBullets = despawnPBs $ playerBullets gs}
+       gs' <- updateAnimations gs
+       return $ updatePlacements $ gs' { playerBullets = despawnPBs $ playerBullets gs'} -- gs'
   | otherwise
   = -- Just update the elapsed time
     return $ gs { elapsedTime = elapsedTime gs + secs }
