@@ -6,7 +6,7 @@ import Graphics.Gloss
 import GHC.Err (undefined)
 
 screenSize :: (Int, Int)
-screenSize = (1520, 855)
+screenSize = (1424, 801)
 
 nO_SECS_BETWEEN_CYCLES :: Float
 nO_SECS_BETWEEN_CYCLES = 1/60
@@ -48,7 +48,7 @@ updateHealthGS gs = gs {playerShip = ps1, playerBullets = pbs1, enemies = ens2, 
                       
 initialState :: GameState
 initialState = let ps  = newPlayerShip in
-                 GameState (-1) ps [] [(Laser ((500,0),(0,0)) (0.2,0.2) [RectangleF (-100,-50) (100,50)] (Fin 3) (Fin 1) (Index 0) 10)] 0 NotLoaded
+                 GameState (-1) ps [] [(Laser ((500,0),(0,0)) (1.5,1.5) [RectangleF (-50,-40) (50,40), RectangleF (-60,-32) (60,32)] (Fin 3) (Fin 1) (Index 0) 10)] 0 NotLoaded
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Spritesheets
@@ -125,7 +125,7 @@ data PlayerShip = PlayerShip { placementPS      :: Placement
                              } deriving (Show)
 instance Placeable PlayerShip where
   placement = placementPS
-  updatePlacement ps = ps {placementPS = nextPosition (placement ps) (-100) } --TODO stayInBounds (collision ps) $ 
+  updatePlacement ps = ps {placementPS = nextPosition (-70) (placement ps) } --TODO stayInBounds (collision ps) $ 
 instance Positionable PlayerShip where
   position = fst . placement
 instance Moveable PlayerShip where
@@ -176,12 +176,12 @@ despawnPBs = filter toNotDespawn
 
 -- Load the sprite list of the player bullets.
 loadPBSprites :: IO [Picture]
-loadPBSprites = let spritelist = [
-                      loadBMP "Playerbullets\\PlayerBullet0.bmp",
-                      loadBMP "Playerbullets\\PlayerBullet1.bmp",
-                      loadBMP "Playerbullets\\PlayerBullet2.bmp",
-                      loadBMP "Playerbullets\\PlayerBullet3.bmp",
-                      loadBMP "Playerbullets\\PlayerBullet4.bmp"
+loadPBSprites = let spritelist = map loadBMP [
+                      "Playerbullets\\PlayerBullet0.bmp",
+                      "Playerbullets\\PlayerBullet1.bmp",
+                      "Playerbullets\\PlayerBullet2.bmp",
+                      "Playerbullets\\PlayerBullet3.bmp",
+                      "Playerbullets\\PlayerBullet4.bmp"
                       ]
                 in sequence (spritelist ++ reverse spritelist)
 
@@ -194,7 +194,7 @@ data PlayerBullet  = PlayerBullet { placementPB   :: Placement
                                   } deriving (Show)
 instance Placeable PlayerBullet where
   placement = placementPB
-  updatePlacement pb = pb {placementPB = nextPosition (placement pb) 100 }
+  updatePlacement pb = pb {placementPB = nextPosition 100 (placement pb) }
 instance Placeables PlayerBullet where
   updatePlacements = updatePlacement
 instance Positionable PlayerBullet where
@@ -266,7 +266,7 @@ data Enemy = Laser    { placementEn   :: Placement
 
 instance Placeable Enemy where
   placement = placementEn
-  updatePlacement en = en {placementEn = nextPosition (placement en) 50 }
+  updatePlacement en = en {placementEn = nextPosition 50 (placement en) }
 instance Placeables Enemy where
   updatePlacements = updatePlacement
 instance Positionable Enemy where
@@ -300,7 +300,7 @@ enemySprite en = case enemyType en of
 
 -- Load the sprite list of the enemy laser.
 loadELSprites :: IO [Picture]
-loadELSprites = sequence [ loadBMP "Wiegel.bmp" ]
+loadELSprites = sequence $ map loadBMP ["Laser\\Laser0.bmp", "Laser\\Laser1.bmp", "Laser\\Laser2.bmp", "Laser\\Laser3.bmp"]
 
 --Prevent rewriting when variable is added later on
 data EnemyType = LaserType | SeekerType | SwarmType | BugType
@@ -433,24 +433,24 @@ toNotDespawn x =
 
 --Placement
 --TODO turn into instance perhaps, change data type into something like game state, with functions, safes on typing
-nextPosition :: Placement -> Float -> Placement
-nextPosition p@((posx, posy), mvt@(mvtx, mvty)) offset = ((nextX p offset, nextY p offset),mvt)
+nextPosition :: Float -> Placement -> Placement
+nextPosition offset p@((posx, posy), mvt@(mvtx, mvty)) = ((nextX offset (posx,mvtx), nextY offset (posy,mvty)),mvt)
 
-nextX :: Placement -> Float -> Float
-nextX ((posx, _), (mvtx, _)) offset
+nextX :: Float -> Vector -> Float
+nextX offset (posx, mvtx)
   | posx+mvtx <= -xBounds = -xBounds -- left x bounds
   | posx+mvtx >= xBounds  = xBounds  -- right x bounds
   | otherwise = posx+mvtx
     where
-        xBounds = 1520/2 + offset
+        xBounds = (fromIntegral (fst screenSize) :: Float) / 2 + offset
 
-nextY :: Placement -> Float -> Float
-nextY ((_, posy), (_, mvty)) offset
+nextY :: Float -> Vector -> Float
+nextY offset (posy, mvty)
   | posy+mvty <= -yBounds = -yBounds  -- lower y bound
   | posy+mvty >= yBounds  = yBounds   -- upper y bound
   | otherwise = posy+mvty
     where
-      yBounds = 855/2 + offset
+      yBounds = (fromIntegral (snd screenSize) :: Float) / 2 + offset
 
 -- Animation
 nextAnimation :: Animation -> Animation
