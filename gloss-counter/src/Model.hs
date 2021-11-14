@@ -17,6 +17,7 @@ data GameState = GameState { elapsedTime    :: Float
                            , playerShip     :: PlayerShip
                            , playerBullets  :: PlayerBullets
                            , enemies        :: Enemies
+                           , playerScore    :: ScorePoints
                            , sprites        :: Sprites
                            }
 instance Placeables GameState where
@@ -30,16 +31,24 @@ instance Viewables GameState where
                     addEns . addPBs . addPS
   updateAnimations gs = gs { playerBullets = updateAnimations $ playerBullets gs }
 
+instance ViewCollideables GameState where
+  viewAllCollision gs = let addPS  = viewAllCollision (playerShip gs) in
+                        let addPBs = viewAllCollision (playerBullets gs) in
+                        let addEns = viewAllCollision (enemies gs) in
+                          addEns . addPBs . addPS
+
+updateHealthGS :: GameState -> GameState
+updateHealthGS gs = gs {playerShip = ps1, playerBullets = pbs1, enemies = ens2, playerScore = pt2} where
+                      ps  = playerShip gs
+                      pbs = playerBullets gs
+                      ens = enemies gs
+                      pt = playerScore gs
+                      (pt1, ps1, ens1) = updateHealth1 (pt, ps, ens)
+                      (pt2, ens2, pbs1) = updateHealth2 (pt1, ens1, pbs)
+                      
 initialState :: GameState
 initialState = let ps  = newPlayerShip in
-                 GameState (-1) ps [] [(Laser ((500,0),(0,0)) (0.2,0.2) [RectangleF (-20,-20) (20,20)] (Index 0) 10)] NotLoaded
-
-
-viewCollisionGS :: GameState -> Picture
-viewCollisionGS gs =  let psCV = viewCollisionOf $ playerShip gs in
-                      -- let pbCV = viewCollisionOf $ head $ playerBullets gs in
-                      -- let enCV = viewCollisionOf $ head $ enemies gs in
-                        pictures [psCV] -- , pbCV, enCV
+                 GameState (-1) ps [] [(Laser ((500,0),(0,0)) (0.2,0.2) [RectangleF (-100,-50) (100,50)] (Fin 3) (Fin 1) (Index 0) 10)] 0 NotLoaded
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Spritesheets
@@ -61,7 +70,7 @@ data Sprites = NotLoaded |
                , enemyLaserSprite     :: [Picture]
                }
 
-data Animation = Invisible | Index Int
+data Animation = Invisible | Index Int deriving (Show)
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Values
@@ -78,6 +87,31 @@ instance (Num a, Num b) => Num (a,b) where
   signum (x,y)  = (signum x, signum y)
   fromInteger i = (fromInteger i, 0)
 
+type Collision = [RectangleF]
+data RectangleF = RectangleF Vector Vector deriving (Show)  -- Bottom Left Corner and Top Right Corner
+
+type Health = MaybeInf Int
+data MaybeInf a = NegInf | Fin a | PosInf deriving (Eq,Ord)
+
+instance (Show a) => Show (MaybeInf a) where
+  show PosInf = "inf"
+  show NegInf = "-inf"
+  show (Fin a) = show a
+
+addInf :: Num a => MaybeInf a -> MaybeInf a -> MaybeInf a
+addInf _ PosInf        = PosInf   --Overwrite to new value (Rightside)
+addInf _ NegInf        = NegInf   --Overwrite to new value (Rightside)
+addInf PosInf _        = PosInf
+addInf NegInf _        = NegInf
+addInf (Fin x) (Fin y) = Fin (x + y)
+
+subInf :: Num a => MaybeInf a -> MaybeInf a -> MaybeInf a
+subInf _ PosInf        = NegInf   --Overwrite to new value (Rightside)
+subInf _ NegInf        = PosInf   --Overwrite to new value (Rightside)
+subInf PosInf _        = PosInf
+subInf NegInf _        = NegInf
+subInf (Fin x) (Fin y) = Fin (x - y)
+
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --PlayerShip
 data PlayerShip = PlayerShip { placementPS      :: Placement
@@ -85,8 +119,10 @@ data PlayerShip = PlayerShip { placementPS      :: Placement
                              , directions       :: MovementPlus
                              , currentDirection :: (Bool, Bool, Bool, Bool)
                              , collisionPS      :: Collision
+                             , healthPS         :: Health
+                             , damagePS         :: Health
                              , spriteStatePS    :: Animation
-                             }
+                             } deriving (Show)
 instance Placeable PlayerShip where
   placement = placementPS
   updatePlacement ps = ps {placementPS = nextPosition (placement ps) (-100) } --TODO stayInBounds (collision ps) $ 
@@ -98,6 +134,13 @@ instance Sizeable PlayerShip where
   size = sizePS
 instance Collideable PlayerShip where
   collision = collisionPS
+instance Hurtable PlayerShip where
+  health        = healthPS
+  getDamage hp ps = ps {healthPS = subInf (health ps) hp}
+instance Painful PlayerShip where
+  damage        = damagePS
+instance Scoreable PlayerBullet where
+  score         = (\_ -> 0)
 instance Viewable PlayerShip where
   view sprs ps = case spriteStatePS ps of
     Invisible -> Blank
@@ -107,23 +150,15 @@ instance Viewable PlayerShip where
 instance Viewables PlayerShip where
   views sprs ps pics = view sprs ps : pics
   updateAnimations = updateAnimation
+instance ViewCollideables PlayerShip where
+  viewAllCollision ps pics = viewCollisionOf ps : pics
 
 -- Load the sprite list of the player ship.
 loadPSSprites :: IO [Picture]
 loadPSSprites = sequence [ loadBMP "PlayerShip.bmp" ]
 
 newPlayerShip :: PlayerShip
-newPlayerShip = PlayerShip ((0,0),(0,0)) (1,1) ((22,-20),(15,-15)) (False,False,False,False) [RectangleF (-20,-20) (20,20)] (Index 0)
-
-{-
-stayInBounds :: Collision -> Placement -> Placement
-stayInBounds (Triangle vx vy vz) =
-  let sx = (fromIntegral $ fst screenSize :: Float) / 2 in
-  let sy = (fromIntegral $ snd screenSize :: Float) / 2 in
-  let 
-  let correctionX = - maximum [(fst vx),(fst vy),(fst vz),sx] - minimum[(fst vx),(fst vy),(fst vz),(-sx)]
-  let correctionY = - maximum [(snd vx),(snd vy),(snd vz),sy] - minimum[(snd vx),(snd vy),(snd vz),(-sy)]
--}
+newPlayerShip = PlayerShip ((-500,0),(0,0)) (1,1) ((22,-20),(15,-15)) (False,False,False,False) [RectangleF (-40,-55) (-10,55), RectangleF (-10,-35) (15,35), RectangleF (-60,-25) (60,25)] (Fin 5) (PosInf) (Index 0)
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --PlayerBullets
@@ -133,6 +168,8 @@ instance Placeables a => Placeables [a] where
 instance Viewables a => Viewables [a] where
   views sprs vs pics = foldr (views sprs) pics vs
   updateAnimations = map updateAnimations
+instance ViewCollideables a => ViewCollideables [a] where
+  viewAllCollision vs pics = foldr (viewAllCollision) pics vs
 
 despawnPBs :: PlayerBullets -> PlayerBullets
 despawnPBs = filter toNotDespawn
@@ -151,8 +188,10 @@ loadPBSprites = let spritelist = [
 data PlayerBullet  = PlayerBullet { placementPB   :: Placement
                                   , sizePB        :: Vector
                                   , collisionPB   :: Collision
+                                  , healthPB      :: Health
+                                  , damagePB      :: Health
                                   , spriteStatePB :: Animation
-                                  }
+                                  } deriving (Show)
 instance Placeable PlayerBullet where
   placement = placementPB
   updatePlacement pb = pb {placementPB = nextPosition (placement pb) 100 }
@@ -166,6 +205,13 @@ instance Sizeable PlayerBullet where
   size = sizePB
 instance Collideable PlayerBullet where
   collision = collisionPB
+instance Hurtable PlayerBullet where
+  health        = healthPB
+  getDamage hp pb = pb {healthPB = subInf (health pb) hp}
+instance Painful PlayerBullet where
+  damage        = damagePB
+instance Scoreable Enemy where
+  score         = scoreValueEn
 instance Viewable PlayerBullet where
   view sprs pb = case spriteStatePB pb of
     Invisible -> Blank
@@ -175,9 +221,11 @@ instance Viewable PlayerBullet where
 instance Viewables PlayerBullet where
   views sprs pb pics = view sprs pb : pics
   updateAnimations = updateAnimation
+instance ViewCollideables PlayerBullet where
+  viewAllCollision ps pics = viewCollisionOf ps : pics
 
 newBullet :: Vector -> PlayerBullet
-newBullet pos = PlayerBullet (pos,(10,0)) (1,1) [RectangleF (-2.0,-2.0) (2.0,2.0)] (Index 0)
+newBullet pos = PlayerBullet (pos,(25,0)) (1,1) [RectangleF (-7.0,-7.0) (7.0,7.0)] (Fin 1) (Fin 1) (Index 0)
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 --Enemies
@@ -186,24 +234,32 @@ type Enemies = [Enemy]
 data Enemy = Laser    { placementEn   :: Placement
                       , sizeEn        :: Vector
                       , collisionEn   :: Collision
+                      , healthEn      :: Health
+                      , damageEn      :: Health
                       , spriteStateEn :: Animation
                       , scoreValueEn  :: ScorePoints
-                      }
+                      } deriving (Show)
 {-           | Seeker   { placementEn   :: Placement
                       , sizeEn        :: Vector
                       , collisionEn   :: Collision
+                      , healthEn      :: Health
+                      , damageEn      :: Health
                       , spriteStateEn :: Animation
                       , scoreValueEn  :: ScorePoints
                       }
            | Swarm    { placementEn   :: Placement
                       , sizeEn        :: Vector
                       , collisionEn   :: Collision
+                      , healthEn      :: Health
+                      , damageEn      :: Health
                       , spriteStateEn :: Animation
                       , scoreValueEn  :: ScorePoints
                       }
            | Bug      { placementEn   :: Placement
                       , sizeEn        :: Vector
                       , collisionEn   :: Collision
+                      , healthEn      :: Health
+                      , damageEn      :: Health
                       , spriteStateEn :: Animation
                       , scoreValueEn  :: ScorePoints
                       } -}
@@ -221,6 +277,11 @@ instance Sizeable Enemy where
   size = sizeEn
 instance Collideable Enemy where
   collision = collisionEn
+instance Hurtable Enemy where
+  health        = healthEn
+  getDamage hp en = en {healthEn = subInf (health en) hp}
+instance Painful Enemy where
+  damage        = damageEn
 instance Viewable Enemy where
   view sprs en = case spriteStateEn en of
     Invisible -> Blank
@@ -230,6 +291,8 @@ instance Viewable Enemy where
 instance Viewables Enemy where
   views sprs en pics = view sprs en : pics
   updateAnimations = updateAnimation
+instance ViewCollideables Enemy where
+  viewAllCollision ps pics = viewCollisionOf ps : pics
 
 enemySprite :: Enemy -> Sprites -> [Picture]
 enemySprite en = case enemyType en of
@@ -243,9 +306,9 @@ loadELSprites = sequence [ loadBMP "Wiegel.bmp" ]
 data EnemyType = LaserType | SeekerType | SwarmType | BugType
 enemyType :: Enemy -> EnemyType
 enemyType (Laser {}) = LaserType
-{-enemyType (Seeker _ _ _ _ _) = SeekerType
-enemyType (Swarm  _ _ _ _ _) = SwarmType
-enemyType (Bug    _ _ _ _ _) = BugType -}
+{-enemyType (Seeker {}) = SeekerType
+enemyType (Swarm  {}) = SwarmType
+enemyType (Bug    {}) = BugType -}
 
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -272,14 +335,45 @@ class Viewables a where
   views :: Sprites -> a -> [Picture] -> [Picture]
   updateAnimations :: a -> a
 
-class Despawnables a where
-  toDespawn :: a -> a
-
---TODO
-type Collision = [RectangleF]
-data RectangleF = RectangleF Vector Vector  -- Bottom Left Corner and Top Right Corner
 class Positionable a => Collideable a where
   collision :: a -> Collision
+class (Viewables a) => ViewCollideables a where
+  viewAllCollision :: a -> [Picture] -> [Picture]
+
+class (Collideable a) => Hurtable a where
+  health   :: a -> Health
+  getDamage :: Health -> a -> a
+
+class (Collideable a) => Painful a where
+  damage   :: a -> Health
+
+class (Hurtable a) => Scoreable a where
+  score    :: a -> ScorePoints
+
+---------------------------------------------------------------------------------------
+--Functions for class types
+
+updateHealth1 :: (Hurtable a, Painful a, Scoreable b, Hurtable b, Painful b) => (ScorePoints,a,[b]) -> (ScorePoints,a,[b])
+updateHealth1 (pt,obj1, [])           = (pt,obj1, [])
+updateHealth1 (pt,obj1, (obj2:obj2s)) | toDespawnByHealth obj1 = (pt, obj1, (obj2:obj2s))
+                                      | otherwise              = (pt''', obj1''', obj2s''') where
+  hit              = objectsCollide obj1 obj2
+  (pt''', obj1''', obj2s''') | hit       = (pt'', obj1'', obj2s'')
+                             | otherwise = let (a1,a2,a3) = updateHealth1 (pt, obj1, obj2s) in (a1,a2,obj2:a3)
+  obj1'            = getDamage (damage obj2) obj1
+  obj2'            = getDamage (damage obj1) obj2
+  (pt', obj1'', obj2s') = updateHealth1 (pt, obj1', obj2s)
+  (pt'', obj2s'')   | toDespawnByHealth obj2' = (pt' + score obj2', obj2s')
+                    | otherwise               = (pt', obj2' : obj2s')
+
+updateHealth2 :: (Scoreable a, Hurtable a, Painful a, Scoreable b, Hurtable b, Painful b) => (ScorePoints,[a],[b]) -> (ScorePoints,[a],[b])
+updateHealth2 (pt, [], obj2s)           = (pt, [], obj2s)
+updateHealth2 (pt, obj1s, [])           = (pt, obj1s, [])
+updateHealth2 (pt, (obj1:obj1s), obj2s) = (pt''', obj1s'',obj2s'') where
+  (pt', obj1', obj2s')    = updateHealth1 (pt, obj1,obj2s)
+  (pt'', obj1s', obj2s'') = updateHealth2 (pt', obj1s,obj2s')
+  (pt''', obj1s'')        | toDespawnByHealth obj1' = (pt'' + score obj1', obj1s')
+                          | otherwise               = (pt'', obj1' : obj1s')
 
 objectsCollide :: (Collideable a, Collideable b) => a -> b -> Bool
 objectsCollide obj1 obj2 =  let col1 = collision obj1 in
@@ -311,6 +405,17 @@ viewCollision col = pictures $ map viewRectangle col
 
 viewRectangle :: RectangleF -> Picture
 viewRectangle (RectangleF (x1,x2) (y1,y2))  = Color red $ polygon [(x1,x2), (x1,y2), (y1,y2), (y1,x2), (x1,x2)]
+
+doDamage :: (Hurtable a, Painful b) => b -> a -> a
+doDamage att = getDamage (damage att)
+
+toDespawnByHealth :: (Hurtable a) => a -> Bool
+toDespawnByHealth obj = health obj <= (Fin 0)
+
+despawnByPosition :: (Positionable a) => [a] -> [a]
+despawnByPosition = foldr g [] where
+  g obj acc | toNotDespawn obj = obj:acc
+            | otherwise        = acc
 
 --Out of bounds despawning
 threshDespawn :: Float

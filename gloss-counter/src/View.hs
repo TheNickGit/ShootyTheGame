@@ -18,23 +18,7 @@ view4 gs
 viewMain :: GameState -> IO Picture
 viewMain gs = do
               let sprs = sprites gs
-              let picCols = viewCollisionGS gs
               return $ case sprs of
                 NotLoaded -> Blank
-                _         -> pictures $ (picCols :) $ views sprs gs []
-
-
-{-
-viewPure :: GameState -> Picture
-viewPure gstate = case infoToShow gstate of
-  ShowNothing   -> blank
-  ShowANumber n -> color blue (text (show n))
-  ShowAChar   c -> color red (text [c])
-
-viewPure2 :: GameState -> Picture
-viewPure2 gstate = case infoToShow2 gstate of
-  ShowNothing   -> blank
-  ShowANumber n -> color white (text (show ((n-5) `mod` 10)))
-  ShowAChar   c -> color green (text [c,' ','y','e','s'])
--}
+                _         -> pictures $ views sprs gs [] --pictures $ views sprs gs $ viewAllCollision gs []
   
